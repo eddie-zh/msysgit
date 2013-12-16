@@ -37,7 +37,7 @@ EOF
 	exit 1
 }
 
-internal_commands="edit merge start_merging_rebase cleanup"
+internal_commands="edit mark merge start_merging_rebase cleanup"
 
 edit () {
 	GIT_EDITOR="$1" &&
@@ -60,6 +60,10 @@ edit () {
 	*)
 		exec "$GIT_EDITOR" "$@"
 	esac
+}
+
+mark () {
+	git update-ref -m "Marking '$1' as rewritten" refs/rewritten/"$1" HEAD
 }
 
 merge () {
@@ -179,7 +183,7 @@ EOF
 		todo="start_merging_rebase \"$shorthead\""
 	fi
 	todo="$(printf '%s\n%s\n' "$todo" \
-		"exec git update-ref refs/rewritten/onto HEAD")"
+		"mark onto")"
 
 	toberebased=" $(echo "$list" | cut -f 1 -d ' ' | tr '\n' ' ')"
 	handled=
@@ -274,7 +278,7 @@ EOF
 		die "Internal error: could not find $commit in $todo"
 		todo="$(echo "$todo" |
 			sed "${linenumber}a\\
-exec git update-ref refs/rewritten/$commit HEAD\\
+mark $commit\\
 ")"
 	done
 
