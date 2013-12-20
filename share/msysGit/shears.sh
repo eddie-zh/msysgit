@@ -152,6 +152,7 @@ merging=
 base_message=
 onto=
 recreate=
+force=
 while test $# -gt 0
 do
 	case "$1" in
@@ -177,6 +178,9 @@ do
 	--recreate=*)
 		recreate="$recreate ${1#--recreate=}"
 		;;
+	--force|-f)
+		force=t
+		;;
 	-h|--help)
 		help
 		;;
@@ -195,7 +199,7 @@ case " $internal_commands " in
 *" $1 "*)
 	command="$1"
 	shift
-	$command "$@"
+	"$command" "$@"
 	exit
 	;;
 esac
@@ -429,12 +433,25 @@ merge refs/rewritten/$mark -C $merge")"
 
 this="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 setup () {
-	test -z "$(git for-each-ref refs/rewritten/)" ||
-	die "There are still rewritten revisions"
+	existing=$(git for-each-ref --format='%(refname)' refs/rewritten/)
+	test -z "$existing" ||
+	if test -n "$force"
+	then
+		for ref in $existing
+		do
+			git update-ref -d $ref
+		done
+	else
+		die "$(printf '%s %s:\n%s\n' \
+			'There are still rewritten revisions' \
+			'(use --force to delete)' \
+			"$existing")"
+	fi
 
 	alias="$(git config --get alias..r)"
 	test -z "$alias" ||
 	test "a$alias" = "a!sh \"$this\"" ||
+	test -n "$force" ||
 	die "There is already an '.r' alias!"
 
 	git config alias..r "!sh \"$this\"" &&
